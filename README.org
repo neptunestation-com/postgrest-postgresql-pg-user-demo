@@ -1,3 +1,5 @@
+#+STARTUP: indent
+
 * What
 
 This project demonstrates using [[https://postgrest.org][PostgREST]] with [[https://auth0.com/][Auth0]].
