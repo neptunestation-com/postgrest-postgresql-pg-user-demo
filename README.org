@@ -56,14 +56,12 @@ There are a variety of ways to do this.  One way is just to create a
 
 #+begin_src bash
   cat <<EOF > setenv.bash
-  export LOGINURL=<Auth0 Universal Login URL>
   export PGRST_SERVER_PORT=<an available web port e.g. 3001>
   export PGPASSWORD=<a PostgreSQL password e.g. postgres>
   export PGUSER=<a PostgreSQL user e.g. postgres>
   export PGDATABASE=<a PostgreSQL database e.g. postgres>
   export PGPORT=<an available database port e.g. 5433> 
   export PGHOST=<database host e.g. localhost>
-  export PGRST_JWT_AUD=<audience "aud" which for Auth0 is the Application Client ID>
   EOF
   source setenv.bash
 #+end_src
