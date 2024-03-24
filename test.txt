@@ -14,3 +14,8 @@ Accept:  text/html
 #
 GET http://:PGHOST::PGRST_SERVER_PORT/rpc/index
 Accept:  text/html
+
+#
+POST http://:PGHOST::PGRST_SERVER_PORT/rpc/login
+
+{ "email": "davidaventimiglia@neptunestation.com", "pass": "password" }

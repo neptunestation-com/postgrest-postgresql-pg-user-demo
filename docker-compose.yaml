@@ -1,15 +1,12 @@
 version: '3'
 services:
   postgres:
-    image: postgres
-    command: postgres -c "custom.loginurl=${LOGINURL}"
+    image: postgres:16
     ports:
       - "${PGPORT}:5432"
     volumes:
       - "./initdb.d-postgres:/docker-entrypoint-initdb.d:ro"
     environment:
-      PGRST_JWT_AUD: "${PGRST_JWT_AUD}"
-      PGRST_JWT_SECRET: "/docker-entrypoint-initdb.d/rsa.jwk.pub"
       POSTGRES_DB: "${PGDATABASE}"
       POSTGRES_PASSWORD: "${PGPASSWORD}"
       POSTGRES_USER: "${PGUSER}"
@@ -20,6 +17,6 @@ services:
     ports:
       - "${PGRST_SERVER_PORT}:3000"
     environment:
-      PGRST_DB_ANON_ROLE: "anonymous"
+      PGRST_DB_ANON_ROLE: "anon"
       PGRST_DB_URI: "postgres://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDATABASE}"
       PGRST_OPENAPI_SERVER_PROXY_URI: "http://127.0.0.1:3000"

@@ -1,8 +1,8 @@
 -- -*- sql-product: postgres; -*-
 
-create role anonymous with nosuperuser inherit nocreaterole nocreatedb nologin noreplication nobypassrls;
+-- create role anon with nosuperuser inherit nocreaterole nocreatedb nologin noreplication nobypassrls;
 
-create role authenticator with nosuperuser noinherit nocreaterole nocreatedb nologin noreplication nobypassrls;
+-- create role authenticator with nosuperuser noinherit nocreaterole nocreatedb nologin noreplication nobypassrls;
 
 create extension if not exists xml2 with schema public;
 
@@ -74,7 +74,7 @@ as $function$
   from resource where slug = 'demo.xsl';
   $function$;
 
-grant select on all tables in schema public to anonymous;
+grant select on all tables in schema public to anon;
 
 notify pgrst, 'reload schema';
 
@@ -84,7 +84,7 @@ do $$
 declare
   grant_statement text;
 begin
-  for grant_statement in select format('grant select on large object %s to anonymous', oid) from pg_largeobject_metadata loop
+  for grant_statement in select format('grant select on large object %s to anon', oid) from pg_largeobject_metadata loop
     raise notice 'performing grant: %', grant_statement;
     execute grant_statement;
   end loop;
