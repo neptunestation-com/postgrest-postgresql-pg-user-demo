@@ -19,3 +19,8 @@ Accept:  text/html
 POST http://:PGHOST::PGRST_SERVER_PORT/rpc/login
 
 { "email": "davidaventimiglia@neptunestation.com", "pass": "password" }
+
+#
+POST http://:PGHOST::PGRST_SERVER_PORT/rpc/login
+
+{ "username": "foo", "password": "bar" }

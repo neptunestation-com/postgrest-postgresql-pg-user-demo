@@ -137,12 +137,12 @@ create type basic_auth.jwt_token as (
   token text
 );
 
-create or replace function login (email text, pass text) returns basic_auth.jwt_token as $$
+create or replace function login (username text, password text) returns basic_auth.jwt_token as $$
   declare
     _role name;
     result basic_auth.jwt_token;
   begin
-    select basic_auth.user_role(email, pass) into _role;
+    select basic_auth.check_user_pass(username, password) into _role;
     if _role is null then
       raise invalid_password using message = 'invalid user or password';
     end if;
@@ -150,7 +150,7 @@ create or replace function login (email text, pass text) returns basic_auth.jwt_
       row_to_json(r), current_setting('app.jwt_secret')
     ) as token
       from (
-	select _role as role, login.email as email,
+	select login.username as role, 
                extract(epoch from now())::integer + 60*60 as exp
       ) r
       into result;
@@ -158,4 +158,77 @@ create or replace function login (email text, pass text) returns basic_auth.jwt_
   end;
 $$ language plpgsql security definer;
 
-grant execute on function login(text,text) to anon;
+grant execute on function login (text,text) to anon;
+
+alter function login (username text, password text) owner to postgres;		   
+
+create or replace function basic_auth.pbkdf2 (salt bytea, pw text, count integer, desired_length integer, algorithm text) returns bytea
+  language plpgsql immutable
+as $$
+  declare
+    hash_length integer;
+    block_count integer;
+    output bytea;
+    the_last bytea;
+    xorsum bytea;
+    i_as_int32 bytea;
+    i integer;
+    j integer;
+    k integer;
+  begin
+    algorithm := lower(algorithm);
+    case algorithm
+    when 'md5' then
+      hash_length := 16;
+    when 'sha1' then
+      hash_length = 20;
+    when 'sha256' then
+      hash_length = 32;
+    when 'sha512' then
+      hash_length = 64;
+    else
+      raise exception 'unknown algorithm "%"', algorithm;
+    end case;
+    block_count := ceil(desired_length::real / hash_length::real);
+    for i in 1 .. block_count loop
+      i_as_int32 := e'\\000\\000\\000'::bytea || chr(i)::bytea;
+      i_as_int32 := substring(i_as_int32, length(i_as_int32) - 3);
+      the_last := salt::bytea || i_as_int32;
+      xorsum := hmac(the_last, pw::bytea, algorithm);
+      the_last := xorsum;
+      for j in 2 .. count loop
+	the_last := hmac(the_last, pw::bytea, algorithm);
+	for k in 1 .. length(xorsum) loop
+          xorsum := set_byte(xorsum, k - 1, get_byte(xorsum, k - 1) # get_byte(the_last, k - 1));
+	end loop;
+      end loop;
+      if output is null then
+	output := xorsum;
+      else
+	output := output || xorsum;
+      end if;
+    end loop;
+    return substring(output from 1 for desired_length);
+  end $$;
+
+alter function basic_auth.pbkdf2 (salt bytea, pw text, count integer, desired_length integer, algorithm text) owner to postgres;		   
+
+create or replace function basic_auth.check_user_pass(username text, password text) returns name
+  language sql
+as
+$$
+  select rolname as username
+  from pg_authid
+  cross join lateral regexp_match(rolpassword, '^SCRAM-SHA-256\$(.*):(.*)\$(.*):(.*)$') AS rm
+  cross join lateral (select rm[1]::integer as iteration_count, decode(rm[2], 'base64') as salt, decode(rm[3], 'base64') as stored_key, decode(rm[4], 'base64') as server_key, 32 as digest_length) as stored_password_part
+  cross join lateral (select basic_auth.pbkdf2(salt, check_user_pass.password, iteration_count, digest_length, 'sha256')) as digest_key(digest_key)
+  cross join lateral (select digest(hmac('Client Key', digest_key, 'sha256'), 'sha256') as stored_key, hmac('Server Key', digest_key, 'sha256') as server_key) as check_password_part
+  where rolpassword is not null
+  and pg_authid.rolname = check_user_pass.username
+  and check_password_part.stored_key = stored_password_part.stored_key
+  and check_password_part.server_key = stored_password_part.server_key;
+$$;
+
+alter function basic_auth.check_user_pass(username text, password text) owner to postgres;
+
+alter function basic_auth.check_user_pass (username text, password text) owner to postgres;
